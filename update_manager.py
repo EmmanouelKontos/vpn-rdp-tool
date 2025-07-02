@@ -4,7 +4,7 @@ import os
 import sys
 
 GITHUB_REPO = "EmmanouelKontos/vpn-rdp-tool"  # Replace with your actual GitHub username and repo name
-CURRENT_VERSION = "v1.0.4"  # This should be updated with each release
+CURRENT_VERSION = "v1.0.5"  # This should be updated with each release
 
 def get_latest_release():
     url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
