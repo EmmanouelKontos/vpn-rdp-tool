@@ -396,9 +396,24 @@ class App(ctk.CTk):
         if platform.system() == "Windows":
             updater_script_content = f"""
 @echo off
-timeout /t 5 /nobreak >NUL
-move /Y "{downloaded_path}" "{current_executable}"
-start "" "{current_executable}"
+set "current_exe_path={current_executable}"
+set "downloaded_exe_path={downloaded_path}"
+set "old_exe_path=%current_exe_path%.old"
+
+REM Give the current app a moment to close
+timeout /t 3 /nobreak >NUL
+
+REM Rename the old executable to release file lock
+move /Y "%current_exe_path%" "%old_exe_path%"
+
+REM Move the new executable into place
+move /Y "%downloaded_exe_path%" "%current_exe_path%"
+
+REM Start the new executable
+start "" "%current_exe_path%"
+
+REM Clean up old executable and updater script
+del "%old_exe_path%"
 del "%~f0"
 """
             updater_script_path = os.path.join(os.path.dirname(current_executable), "update.bat")
