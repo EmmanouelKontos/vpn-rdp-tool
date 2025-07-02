@@ -11,6 +11,10 @@ import time
 from datetime import datetime
 from PIL import Image
 from tkinter import PhotoImage
+import os
+import sys
+import subprocess
+import platform
 
 class App(ctk.CTk):
     def __init__(self):
@@ -91,6 +95,8 @@ class App(ctk.CTk):
         self.rdp_btn.pack(fill="x", padx=10, pady=5)
         
         self.progress_bar = ctk.CTkProgressBar(control_frame, mode='indeterminate')
+        self.download_progress_bar = ctk.CTkProgressBar(control_frame, mode='determinate')
+        self.download_percentage_label = ctk.CTkLabel(control_frame, text="")
 
         log_frame = ctk.CTkFrame(self.home_tab)
         log_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
@@ -105,7 +111,7 @@ class App(ctk.CTk):
         self.settings_tab.grid_columnconfigure(0, weight=1)
         self.settings_tab.grid_rowconfigure(0, weight=0) # For wg_frame
         self.settings_tab.grid_rowconfigure(1, weight=1) # For host_mgmt_frame
-        self.settings_tab.grid_rowconfigure(2, weight=0) # For buttons frame
+        self.settings_tab.grid_rowconfigure(2, weight=0) # For bottom_buttons_frame
 
         wg_frame = ctk.CTkFrame(self.settings_tab)
         wg_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
@@ -118,17 +124,19 @@ class App(ctk.CTk):
 
         host_mgmt_frame = ctk.CTkFrame(self.settings_tab)
         host_mgmt_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
-        host_mgmt_frame.grid_rowconfigure(2, weight=1) # Make listbox expand
+        host_mgmt_frame.grid_rowconfigure(1, weight=1) # Make listbox expand
+        host_mgmt_frame.grid_rowconfigure(2, weight=0) # For edit_frame
+        host_mgmt_frame.grid_rowconfigure(3, weight=0) # For btn_frame
         host_mgmt_frame.grid_columnconfigure(0, weight=1) # Make content expand
         ctk.CTkLabel(host_mgmt_frame, text="Host Profiles", font=ctk.CTkFont(size=14, weight="bold")).grid(row=0, column=0, pady=5)
 
-        self.host_listbox = ctk.CTkTextbox(host_mgmt_frame, height=150, wrap="none")
+        self.host_listbox = ctk.CTkTextbox(host_mgmt_frame, wrap="none")
         self.host_listbox.grid(row=1, column=0, pady=5, padx=10, sticky="nsew")
         self.update_host_listbox()
 
         edit_frame = ctk.CTkFrame(host_mgmt_frame)
         edit_frame.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
-        edit_frame.grid_columnconfigure(1, weight=1)
+        edit_frame.grid_columnconfigure(1, weight=1) # Make entry fields expand
 
         ctk.CTkLabel(edit_frame, text="Name:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
         self.name_entry = ctk.CTkEntry(edit_frame)
@@ -157,7 +165,7 @@ class App(ctk.CTk):
         ctk.CTkButton(bottom_buttons_frame, text="Save All Settings", command=self.save_settings).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
         ctk.CTkButton(bottom_buttons_frame, text="Check for Updates", command=self.check_for_updates_gui).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
-    def browse_wg_config():
+    def browse_wg_config(self):
         filepath = filedialog.askopenfilename(title="Select WireGuard Configuration File")
         if filepath:
             self.wg_path_entry.delete(0, ctk.END)
@@ -330,17 +338,32 @@ class App(ctk.CTk):
                                        f"A new version ({latest_version}) is available. Do you want to download it now?")
         if response:
             self.log("Downloading update...")
+            self.download_progress_bar.pack(fill="x", padx=10, pady=5)
+            self.download_percentage_label.pack(pady=(0,5))
+            self.download_progress_bar.set(0)
             threading.Thread(target=self._download_update_thread, args=(assets,), daemon=True).start()
+
+    def _update_download_progress_gui(self, downloaded, total):
+        if total > 0:
+            progress = downloaded / total
+            percentage = int(progress * 100)
+            self.download_progress_bar.set(progress)
+            self.download_percentage_label.configure(text=f"Downloading: {percentage}%")
+        else:
+            self.download_percentage_label.configure(text="Downloading...")
 
     def _download_update_thread(self, assets):
         asset_to_download = um.get_appropriate_asset(assets)
         if asset_to_download:
             download_path = os.path.join(os.path.expanduser("~"), asset_to_download['name'])
-            success, error_message = um.download_asset(asset_to_download['browser_download_url'], download_path)
+            success, error_message = um.download_asset(asset_to_download['browser_download_url'], download_path, self._update_download_progress_gui)
+            
+            self.after(100, self.download_progress_bar.pack_forget)
+            self.after(100, self.download_percentage_label.pack_forget)
+
             if success:
-                self.after(100, lambda: messagebox.showinfo("Download Complete",
-                                                           f"Update downloaded to {download_path}. Please replace your current executable and restart the application."))
                 self.log(f"Update downloaded to {download_path}")
+                self.after(100, lambda: self._prompt_for_update_and_restart(download_path))
             else:
                 self.after(100, lambda: messagebox.showerror("Download Failed",
                                                            f"Failed to download update: {error_message}"))
@@ -349,6 +372,65 @@ class App(ctk.CTk):
             self.after(100, lambda: messagebox.showerror("Update Error",
                                                        "No appropriate update file found for your operating system."))
             self.log("No appropriate update file found.")
+
+    def _prompt_for_update_and_restart(self, downloaded_path):
+        response = messagebox.askyesno("Update Ready",
+                                       "Update downloaded. Do you want to install it now and restart the application?")
+        if response:
+            self._perform_self_update(downloaded_path)
+        else:
+            messagebox.showinfo("Update Deferred", "Update will be installed on next manual restart.")
+
+    def _perform_self_update(self, downloaded_path):
+        current_executable = sys.executable if not getattr(sys, 'frozen', False) else sys.argv[0]
+        
+        # For PyInstaller bundled app, sys.executable points to the bootloader, sys.argv[0] is the executable itself
+        if getattr(sys, 'frozen', False):
+            current_executable = sys.argv[0]
+        else:
+            # If not frozen, we are running from source, so we don't self-update the script itself
+            messagebox.showinfo("Self-Update", "Self-update is only available for packaged executables.")
+            return
+
+        # Create a temporary script to perform the update
+        if platform.system() == "Windows":
+            updater_script_content = f"""
+@echo off
+timeout /t 5 /nobreak >NUL
+move /Y "{downloaded_path}" "{current_executable}"
+start "" "{current_executable}"
+del "%~f0"
+"""
+            updater_script_path = os.path.join(os.path.dirname(current_executable), "update.bat")
+        else: # Linux
+            updater_script_content = f"""
+#!/bin/bash
+sleep 5
+mv -f "{downloaded_path}" "{current_executable}"
+chmod +x "{current_executable}"
+exec "{current_executable}" &
+rm -- "$0"
+"""
+            updater_script_path = os.path.join(os.path.dirname(current_executable), "update.sh")
+            os.chmod(updater_script_path, 0o755) # Make executable
+
+        with open(updater_script_path, "w") as f:
+            f.write(updater_script_content)
+
+        self.log(f"Executing update script: {updater_script_path}")
+        
+        # Execute the updater script and exit the current application
+        try:
+            if platform.system() == "Windows":
+                subprocess.Popen([updater_script_path], shell=True, creationflags=subprocess.DETACHED_PROCESS)
+            else:
+                subprocess.Popen([updater_script_path], shell=True, preexec_fn=os.setsid)
+        except Exception as e:
+            self.log(f"Error launching updater script: {e}")
+            messagebox.showerror("Update Error", f"Failed to launch updater script: {e}")
+        
+        self.destroy() # Close the current application
+        sys.exit() # Ensure the process exits
 
 if __name__ == "__main__":
     app = App()

@@ -24,13 +24,20 @@ def check_for_updates():
             return True, latest_version, latest_release['assets']
     return False, None, None
 
-def download_asset(asset_url, download_path):
+def download_asset(asset_url, download_path, progress_callback=None):
     try:
         response = requests.get(asset_url, stream=True)
         response.raise_for_status()
+
+        total_size = int(response.headers.get('content-length', 0))
+        downloaded_size = 0
+
         with open(download_path, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
+                downloaded_size += len(chunk)
+                if progress_callback:
+                    progress_callback(downloaded_size, total_size)
         return True, ""
     except requests.exceptions.RequestException as e:
         return False, str(e)
