@@ -1,0 +1,12 @@
+
+{
+    "wireguard_config_path": "",
+    "hosts": [
+        {
+            "name": "Example Host",
+            "ip_address": "192.168.1.100",
+            "mac_address": "00:11:22:33:44:55",
+            "rdp_user": "user"
+        }
+    ]
+}

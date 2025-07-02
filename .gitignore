@@ -1,0 +1,12 @@
+# Python virtual environment
+venv/
+
+# User configuration - DO NOT COMMIT
+config.json
+
+# Icon cache
+icon_cache/
+
+# Python bytecode
+__pycache__/
+*.pyc
