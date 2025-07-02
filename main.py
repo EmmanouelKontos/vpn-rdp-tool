@@ -1,5 +1,3 @@
-
-
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
 import settings_manager as sm
@@ -7,6 +5,7 @@ import vpn_manager as vm
 import wol_manager as wm
 import rdp_manager as rm
 import icon_manager as im
+import update_manager as um
 import threading
 import time
 from datetime import datetime
@@ -47,6 +46,7 @@ class App(ctk.CTk):
         self.create_home_tab()
         self.create_settings_tab()
         self.log("Application started.")
+        self.after(100, self.check_for_updates_on_startup) # Check for updates shortly after startup
 
     def log(self, message):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -134,6 +134,8 @@ class App(ctk.CTk):
         ctk.CTkButton(btn_frame, text="Update", command=self.update_host).pack(side="left", expand=True, padx=5)
         ctk.CTkButton(btn_frame, text="Remove", command=self.remove_host).pack(side="left", expand=True, padx=5)
         ctk.CTkButton(self.settings_tab, text="Save All Settings", command=self.save_settings).pack(pady=10, padx=10)
+        
+        ctk.CTkButton(self.settings_tab, text="Check for Updates", command=self.check_for_updates_gui).pack(pady=10, padx=10)
 
     def browse_wg_config(self):
         filepath = filedialog.askopenfilename(title="Select WireGuard Configuration File")
@@ -284,6 +286,49 @@ class App(ctk.CTk):
         self.log(message)
         if not success:
             messagebox.showerror("RDP Error", message)
+
+    def check_for_updates_on_startup(self):
+        self.log("Checking for updates...")
+        threading.Thread(target=self._check_for_updates_thread, args=(True,), daemon=True).start()
+
+    def check_for_updates_gui(self):
+        self.log("Manually checking for updates...")
+        threading.Thread(target=self._check_for_updates_thread, args=(False,), daemon=True).start()
+
+    def _check_for_updates_thread(self, startup_check=False):
+        update_available, latest_version, assets = um.check_for_updates()
+        if update_available:
+            self.after(100, self._handle_update_available, latest_version, assets)
+        else:
+            if not startup_check:
+                self.after(100, lambda: messagebox.showinfo("No Updates", "You are running the latest version."))
+            self.log("No updates available.")
+
+    def _handle_update_available(self, latest_version, assets):
+        self.log(f"Update available! Latest version: {latest_version}")
+        response = messagebox.askyesno("Update Available",
+                                       f"A new version ({latest_version}) is available. Do you want to download it now?")
+        if response:
+            self.log("Downloading update...")
+            threading.Thread(target=self._download_update_thread, args=(assets,), daemon=True).start()
+
+    def _download_update_thread(self, assets):
+        asset_to_download = um.get_appropriate_asset(assets)
+        if asset_to_download:
+            download_path = os.path.join(os.path.expanduser("~"), asset_to_download['name'])
+            success, error_message = um.download_asset(asset_to_download['browser_download_url'], download_path)
+            if success:
+                self.after(100, lambda: messagebox.showinfo("Download Complete",
+                                                           f"Update downloaded to {download_path}. Please replace your current executable and restart the application."))
+                self.log(f"Update downloaded to {download_path}")
+            else:
+                self.after(100, lambda: messagebox.showerror("Download Failed",
+                                                           f"Failed to download update: {error_message}"))
+                self.log(f"Update download failed: {error_message}")
+        else:
+            self.after(100, lambda: messagebox.showerror("Update Error",
+                                                       "No appropriate update file found for your operating system."))
+            self.log("No appropriate update file found.")
 
 if __name__ == "__main__":
     app = App()

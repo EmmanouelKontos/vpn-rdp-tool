@@ -1,3 +1,4 @@
 customtkinter
 wakeonlan
 Pillow
+requests
