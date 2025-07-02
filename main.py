@@ -35,10 +35,18 @@ class App(ctk.CTk):
         self.vpn_active = False
 
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1) # Row for tab_view
+        self.grid_rowconfigure(1, weight=0) # Row for status bar
 
         self.tab_view = ctk.CTkTabview(self, anchor="w")
-        self.tab_view.pack(expand=True, fill="both", padx=10, pady=10)
+        self.tab_view.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+
+        # Status Bar
+        self.status_bar = ctk.CTkFrame(self)
+        self.status_bar.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
+        self.status_bar.grid_columnconfigure(0, weight=1)
+        self.version_label = ctk.CTkLabel(self.status_bar, text=f"Version: {um.CURRENT_VERSION}", font=ctk.CTkFont(size=12))
+        self.version_label.grid(row=0, column=0, padx=10, pady=5, sticky="e")
 
         self.home_tab = self.tab_view.add("Home")
         self.settings_tab = self.tab_view.add("Settings")
@@ -56,10 +64,11 @@ class App(ctk.CTk):
         self.log_textbox.see(ctk.END)
 
     def create_home_tab(self):
-        self.home_tab.grid_columnconfigure(1, weight=1)
+        self.home_tab.grid_columnconfigure(0, weight=0) # Control frame, fixed size
+        self.home_tab.grid_columnconfigure(1, weight=1) # Log frame, expands
         self.home_tab.grid_rowconfigure(0, weight=1)
 
-        control_frame = ctk.CTkFrame(self.home_tab, width=250)
+        control_frame = ctk.CTkFrame(self.home_tab)
         control_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ns")
 
         ctk.CTkLabel(control_frame, text="Controls", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=10)
@@ -94,25 +103,31 @@ class App(ctk.CTk):
 
     def create_settings_tab(self):
         self.settings_tab.grid_columnconfigure(0, weight=1)
+        self.settings_tab.grid_rowconfigure(0, weight=0) # For wg_frame
+        self.settings_tab.grid_rowconfigure(1, weight=1) # For host_mgmt_frame
+        self.settings_tab.grid_rowconfigure(2, weight=0) # For buttons frame
 
         wg_frame = ctk.CTkFrame(self.settings_tab)
-        wg_frame.pack(pady=10, padx=10, fill="x")
-        ctk.CTkLabel(wg_frame, text="WireGuard Config Path:").pack(side="left", padx=10)
-        self.wg_path_entry = ctk.CTkEntry(wg_frame, width=300)
+        wg_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        wg_frame.grid_columnconfigure(1, weight=1) # Make entry expand
+        ctk.CTkLabel(wg_frame, text="WireGuard Config Path:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        self.wg_path_entry = ctk.CTkEntry(wg_frame)
         self.wg_path_entry.insert(0, self.settings.get('wireguard_config_path', ''))
-        self.wg_path_entry.pack(side="left", expand=True, fill="x", padx=5)
-        ctk.CTkButton(wg_frame, text="Browse...", command=self.browse_wg_config).pack(side="left")
+        self.wg_path_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ctk.CTkButton(wg_frame, text="Browse...", command=self.browse_wg_config).grid(row=0, column=2, padx=5, pady=5)
 
         host_mgmt_frame = ctk.CTkFrame(self.settings_tab)
-        host_mgmt_frame.pack(pady=10, padx=10, fill="both", expand=True)
-        ctk.CTkLabel(host_mgmt_frame, text="Host Profiles", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=5)
+        host_mgmt_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+        host_mgmt_frame.grid_rowconfigure(2, weight=1) # Make listbox expand
+        host_mgmt_frame.grid_columnconfigure(0, weight=1) # Make content expand
+        ctk.CTkLabel(host_mgmt_frame, text="Host Profiles", font=ctk.CTkFont(size=14, weight="bold")).grid(row=0, column=0, pady=5)
 
         self.host_listbox = ctk.CTkTextbox(host_mgmt_frame, height=150, wrap="none")
-        self.host_listbox.pack(pady=5, padx=10, fill="x")
+        self.host_listbox.grid(row=1, column=0, pady=5, padx=10, sticky="nsew")
         self.update_host_listbox()
 
         edit_frame = ctk.CTkFrame(host_mgmt_frame)
-        edit_frame.pack(pady=5, padx=10, fill="x")
+        edit_frame.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
         edit_frame.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(edit_frame, text="Name:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
@@ -129,15 +144,20 @@ class App(ctk.CTk):
         self.user_entry.grid(row=3, column=1, padx=5, pady=5, sticky="ew")
 
         btn_frame = ctk.CTkFrame(host_mgmt_frame)
-        btn_frame.pack(pady=5, padx=10, fill="x")
-        ctk.CTkButton(btn_frame, text="Add", command=self.add_host).pack(side="left", expand=True, padx=5)
-        ctk.CTkButton(btn_frame, text="Update", command=self.update_host).pack(side="left", expand=True, padx=5)
-        ctk.CTkButton(btn_frame, text="Remove", command=self.remove_host).pack(side="left", expand=True, padx=5)
-        ctk.CTkButton(self.settings_tab, text="Save All Settings", command=self.save_settings).pack(pady=10, padx=10)
+        btn_frame.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
+        btn_frame.grid_columnconfigure((0,1,2), weight=1) # Make buttons expand
+        ctk.CTkButton(btn_frame, text="Add", command=self.add_host).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+        ctk.CTkButton(btn_frame, text="Update", command=self.update_host).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ctk.CTkButton(btn_frame, text="Remove", command=self.remove_host).grid(row=0, column=2, padx=5, pady=5, sticky="ew")
         
-        ctk.CTkButton(self.settings_tab, text="Check for Updates", command=self.check_for_updates_gui).pack(pady=10, padx=10)
+        # New frame for Save and Update Check buttons
+        bottom_buttons_frame = ctk.CTkFrame(self.settings_tab)
+        bottom_buttons_frame.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
+        bottom_buttons_frame.grid_columnconfigure((0,1), weight=1)
+        ctk.CTkButton(bottom_buttons_frame, text="Save All Settings", command=self.save_settings).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+        ctk.CTkButton(bottom_buttons_frame, text="Check for Updates", command=self.check_for_updates_gui).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
-    def browse_wg_config(self):
+    def browse_wg_config():
         filepath = filedialog.askopenfilename(title="Select WireGuard Configuration File")
         if filepath:
             self.wg_path_entry.delete(0, ctk.END)
