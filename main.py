@@ -130,9 +130,8 @@ class App(ctk.CTk):
         host_mgmt_frame.grid_columnconfigure(0, weight=1) # Make content expand
         ctk.CTkLabel(host_mgmt_frame, text="Host Profiles", font=ctk.CTkFont(size=14, weight="bold")).grid(row=0, column=0, pady=5)
 
-        self.host_listbox = ctk.CTkTextbox(host_mgmt_frame, wrap="none")
-        self.host_listbox.grid(row=1, column=0, pady=5, padx=10, sticky="nsew")
-        self.host_listbox.bind("<<ListboxSelect>>", self.on_host_select)
+        self.host_scrollable_frame = ctk.CTkScrollableFrame(host_mgmt_frame)
+        self.host_scrollable_frame.grid(row=1, column=0, pady=5, padx=10, sticky="nsew")
         self.update_host_listbox()
 
         edit_frame = ctk.CTkFrame(host_mgmt_frame)
@@ -174,30 +173,24 @@ class App(ctk.CTk):
             self.log(f"Selected WireGuard config: {filepath}")
 
     def update_host_listbox(self):
-        self.host_listbox.configure(state="normal")
-        self.host_listbox.delete("1.0", ctk.END)
-        for host in self.settings.get('hosts', []):
-            self.host_listbox.insert(ctk.END, f"{host['name']} ({host['ip_address']})\n")
+        for widget in self.host_scrollable_frame.winfo_children():
+            widget.destroy()
+
+        for i, host in enumerate(self.settings.get('hosts', [])):
+            host_button = ctk.CTkButton(self.host_scrollable_frame, text=f"{host['name']} ({host['ip_address']})", 
+                                        command=lambda h=host: self.on_host_select(h))
+            host_button.pack(fill="x", padx=5, pady=2)
         self.update_host_dropdown()
 
-    def on_host_select(self, event=None):
-        # This event is for the Textbox, we need to get the selected line
-        selected_index = self.host_listbox.index(ctk.INSERT).split('.')[0]
-        if selected_index:
-            try:
-                selected_index = int(selected_index) - 1 # Convert to 0-based index
-                if 0 <= selected_index < len(self.settings.get('hosts', [])):
-                    host = self.settings.get('hosts', [])[selected_index]
-                    self.name_entry.delete(0, ctk.END)
-                    self.name_entry.insert(0, host.get('name', ''))
-                    self.ip_entry.delete(0, ctk.END)
-                    self.ip_entry.insert(0, host.get('ip_address', ''))
-                    self.mac_entry.delete(0, ctk.END)
-                    self.mac_entry.insert(0, host.get('mac_address', ''))
-                    self.user_entry.delete(0, ctk.END)
-                    self.user_entry.insert(0, host.get('rdp_user', ''))
-            except (ValueError, IndexError):
-                pass # Ignore errors if the line is invalid or out of range
+    def on_host_select(self, host):
+        self.name_entry.delete(0, ctk.END)
+        self.name_entry.insert(0, host.get('name', ''))
+        self.ip_entry.delete(0, ctk.END)
+        self.ip_entry.insert(0, host.get('ip_address', ''))
+        self.mac_entry.delete(0, ctk.END)
+        self.mac_entry.insert(0, host.get('mac_address', ''))
+        self.user_entry.delete(0, ctk.END)
+        self.user_entry.insert(0, host.get('rdp_user', ''))
 
     def update_host_dropdown(self):
         host_names = [h['name'] for h in self.settings.get('hosts', [])]
@@ -221,7 +214,7 @@ class App(ctk.CTk):
             messagebox.showerror("Error", "All host fields are required.")
 
     def update_host(self):
-        selected_host_name = self.host_variable.get()
+        selected_host_name = self.name_entry.get()
         if not selected_host_name or selected_host_name == "No hosts configured":
             messagebox.showerror("Error", "No host selected to update.")
             return
@@ -238,7 +231,7 @@ class App(ctk.CTk):
                 return
 
     def remove_host(self):
-        selected_host_name = self.host_variable.get()
+        selected_host_name = self.name_entry.get()
         if not selected_host_name or selected_host_name == "No hosts configured":
             messagebox.showerror("Error", "No host selected to remove.")
             return
@@ -403,37 +396,43 @@ class App(ctk.CTk):
     def _perform_self_update(self, downloaded_path):
         current_executable = sys.executable if not getattr(sys, 'frozen', False) else sys.argv[0]
         
-        # For PyInstaller bundled app, sys.executable points to the bootloader, sys.argv[0] is the executable itself
-        if getattr(sys, 'frozen', False):
-            current_executable = sys.argv[0]
-        else:
-            # If not frozen, we are running from source, so we don't self-update the script itself
+        if not getattr(sys, 'frozen', False):
             messagebox.showinfo("Self-Update", "Self-update is only available for packaged executables.")
             return
 
-        # Create a temporary script to perform the update
         if platform.system() == "Windows":
             updater_script_content = f"""
 @echo off
+setlocal
+
 set "current_exe_path={current_executable}"
 set "downloaded_exe_path={downloaded_path}"
 set "old_exe_path=%current_exe_path%.old"
 
-REM Give the current app a moment to close
-timeout /t 3 /nobreak >NUL
+echo Waiting for application to close...
+taskkill /IM {os.path.basename(current_executable)} /F > NUL 2>&1
+timeout /t 5 /nobreak > NUL
 
-REM Rename the old executable to release file lock
+echo Renaming current executable...
+:retry_move
 move /Y "%current_exe_path%" "%old_exe_path%"
+if exist "%current_exe_path%" (
+    echo Failed to rename, retrying in 5 seconds...
+    timeout /t 5 /nobreak > NUL
+    goto retry_move
+)
 
-REM Move the new executable into place
+echo Moving new executable into place...
 move /Y "%downloaded_exe_path%" "%current_exe_path%"
 
-REM Start the new executable
+echo Starting new version...
 start "" "%current_exe_path%"
 
-REM Clean up old executable and updater script
-del "%old_exe_path%"
-del "%~f0"
+echo Cleaning up...
+del "%old_exe_path%" > NUL 2>&1
+(goto) 2>nul & del "%~f0"
+
+endlocal
 """
             updater_script_path = os.path.join(os.path.dirname(current_executable), "update.bat")
         else: # Linux
@@ -453,18 +452,17 @@ rm -- "$0"
 
         self.log(f"Executing update script: {updater_script_path}")
         
-        # Execute the updater script and exit the current application
         try:
             if platform.system() == "Windows":
-                subprocess.Popen([updater_script_path], shell=True, creationflags=subprocess.DETACHED_PROCESS)
+                subprocess.Popen([updater_script_path], shell=True, creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
             else:
                 subprocess.Popen([updater_script_path], shell=True, preexec_fn=os.setsid)
         except Exception as e:
             self.log(f"Error launching updater script: {e}")
             messagebox.showerror("Update Error", f"Failed to launch updater script: {e}")
         
-        self.destroy() # Close the current application
-        sys.exit() # Ensure the process exits
+        self.destroy()
+        sys.exit()
 
 if __name__ == "__main__":
     app = App()
