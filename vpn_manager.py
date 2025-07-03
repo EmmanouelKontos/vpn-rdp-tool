@@ -1,18 +1,17 @@
 import subprocess
 import platform
-
-def get_vpn_command():
-    system = platform.system()
-    if system == "Windows":
-        return ["wg-quick"]
-    elif system == "Linux":
-        return ["wg-quick"]
-    else:
-        raise OSError(f"Unsupported OS: {system}")
+import os
 
 def connect_vpn(config_path):
+    system = platform.system()
     try:
-        cmd = get_vpn_command() + ["up", config_path]
+        if system == "Windows":
+            cmd = ["C:\\Program Files\\WireGuard\\wireguard.exe", "/installtunnelservice", config_path]
+        elif system == "Linux":
+            cmd = ["wg-quick", "up", config_path]
+        else:
+            raise OSError(f"Unsupported OS: {system}")
+
         subprocess.run(cmd, check=True, capture_output=True, text=True)
         return True, f"Successfully connected to VPN using {config_path}"
     except FileNotFoundError:
@@ -23,8 +22,16 @@ def connect_vpn(config_path):
         return False, str(e)
 
 def disconnect_vpn(config_path):
+    system = platform.system()
     try:
-        cmd = get_vpn_command() + ["down", config_path]
+        tunnel_name = os.path.splitext(os.path.basename(config_path))[0]
+        if system == "Windows":
+            cmd = ["C:\\Program Files\\WireGuard\\wireguard.exe", "/uninstalltunnelservice", tunnel_name]
+        elif system == "Linux":
+            cmd = ["wg-quick", "down", config_path]
+        else:
+            raise OSError(f"Unsupported OS: {system}")
+
         subprocess.run(cmd, check=True, capture_output=True, text=True)
         return True, f"Successfully disconnected from VPN using {config_path}"
     except FileNotFoundError:
