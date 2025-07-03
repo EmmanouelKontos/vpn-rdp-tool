@@ -21,9 +21,9 @@ class App(ctk.CTk):
         super().__init__()
 
         self.title("Universal VPN & RDP Tool")
-        self.geometry("800x600")
-        ctk.set_appearance_mode("System")
-        ctk.set_default_color_theme("blue")
+        self.geometry("900x700") # Slightly larger default size
+        self.minsize(700, 500) # Set a minimum size for responsiveness
+        ctk.set_default_color_theme("blue") # Default theme
 
         # Load Icons
         self.icons = {name: ctk.CTkImage(Image.open(path)) for name, path in im.get_all_icons().items()}
@@ -34,21 +34,21 @@ class App(ctk.CTk):
         except Exception as e:
             print(f"Error setting application icon: {e}")
 
-
-        self.settings = sm.load_settings()
-        ctk.set_appearance_mode(self.settings.get("appearance_mode", "System"))
-        self.vpn_active = False
-
+        # Configure grid for main window
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1) # Row for tab_view
         self.grid_rowconfigure(1, weight=0) # Row for status bar
 
+        self.settings = sm.load_settings()
+        ctk.set_appearance_mode(self.settings.get("appearance_mode", "System")) # Apply saved appearance mode
+        self.vpn_active = False
+
         self.tab_view = ctk.CTkTabview(self, anchor="w")
-        self.tab_view.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        self.tab_view.grid(row=0, column=0, sticky="nsew", padx=20, pady=20) # Increased padding
 
         # Status Bar
         self.status_bar = ctk.CTkFrame(self)
-        self.status_bar.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
+        self.status_bar.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20)) # Increased padding
         self.status_bar.grid_columnconfigure(0, weight=1)
         self.version_label = ctk.CTkLabel(self.status_bar, text=f"Version: {um.CURRENT_VERSION}", font=ctk.CTkFont(size=12))
         self.version_label.grid(row=0, column=0, padx=10, pady=5, sticky="e")
