@@ -4,6 +4,8 @@ import os
 
 def connect_vpn(config_path):
     system = platform.system()
+    # Attempt to disconnect first to ensure a clean state
+    disconnect_vpn(config_path) 
     try:
         if system == "Windows":
             cmd = ["C:\\Program Files\\WireGuard\\wireguard.exe", "/installtunnelservice", config_path]
@@ -37,6 +39,9 @@ def disconnect_vpn(config_path):
     except FileNotFoundError:
         return False, "WireGuard command not found. Is WireGuard installed and in your PATH?"
     except subprocess.CalledProcessError as e:
+        # If the tunnel is not found, it's already disconnected, so we can consider it a success for pre-disconnect
+        if "Tunnel not found" in e.stderr or "No such device" in e.stderr:
+            return True, f"VPN tunnel {tunnel_name} was not active or already disconnected."
         return False, f"VPN disconnection failed:\n{e.stderr}"
     except Exception as e:
         return False, str(e)
