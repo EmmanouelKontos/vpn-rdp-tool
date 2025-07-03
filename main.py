@@ -36,6 +36,7 @@ class App(ctk.CTk):
 
 
         self.settings = sm.load_settings()
+        ctk.set_appearance_mode(self.settings.get("appearance_mode", "System"))
         self.vpn_active = False
 
         self.grid_columnconfigure(0, weight=1)
@@ -73,69 +74,71 @@ class App(ctk.CTk):
         self.home_tab.grid_rowconfigure(0, weight=1)
 
         control_frame = ctk.CTkFrame(self.home_tab)
-        control_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ns")
+        control_frame.grid(row=0, column=0, padx=15, pady=15, sticky="ns")
+        control_frame.grid_columnconfigure(0, weight=1) # Make elements in control frame expand horizontally
 
-        ctk.CTkLabel(control_frame, text="Controls", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=10)
+        ctk.CTkLabel(control_frame, text="Controls", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(15, 10))
 
-        ctk.CTkLabel(control_frame, text="Select Host:").pack(padx=10, pady=(10,0), anchor="w")
+        ctk.CTkLabel(control_frame, text="Select Host:").pack(padx=15, pady=(10,5), anchor="w")
         self.host_variable = ctk.StringVar()
         self.host_dropdown = ctk.CTkOptionMenu(control_frame, variable=self.host_variable, values=[h['name'] for h in self.settings.get('hosts', [])])
-        self.host_dropdown.pack(fill="x", padx=10, pady=5)
+        self.host_dropdown.pack(fill="x", padx=15, pady=5)
 
         self.vpn_status_label = ctk.CTkLabel(control_frame, text="VPN: Disconnected", text_color="red")
         self.vpn_status_label.pack(pady=10)
 
-        self.connect_btn = ctk.CTkButton(control_frame, text="Connect VPN", image=self.icons['connect'], command=self.toggle_vpn_connection)
-        self.connect_btn.pack(fill="x", padx=10, pady=5)
+        self.connect_btn = ctk.CTkButton(control_frame, text="Connect VPN", image=self.icons['connect'], compound="left", command=self.toggle_vpn_connection)
+        self.connect_btn.pack(fill="x", padx=15, pady=5)
 
-        self.wake_btn = ctk.CTkButton(control_frame, text="Wake Host", image=self.icons['wake'], command=self.wake_host)
-        self.wake_btn.pack(fill="x", padx=10, pady=5)
+        self.wake_btn = ctk.CTkButton(control_frame, text="Wake Host", image=self.icons['wake'], compound="left", command=self.wake_host)
+        self.wake_btn.pack(fill="x", padx=15, pady=5)
 
-        self.rdp_btn = ctk.CTkButton(control_frame, text="Launch RDP", image=self.icons['rdp'], command=self.launch_rdp)
-        self.rdp_btn.pack(fill="x", padx=10, pady=5)
+        self.rdp_btn = ctk.CTkButton(control_frame, text="Launch RDP", image=self.icons['rdp'], compound="left", command=self.launch_rdp)
+        self.rdp_btn.pack(fill="x", padx=15, pady=5)
         
         self.progress_bar = ctk.CTkProgressBar(control_frame, mode='indeterminate')
         self.download_progress_bar = ctk.CTkProgressBar(control_frame, mode='determinate')
         self.download_percentage_label = ctk.CTkLabel(control_frame, text="")
 
         log_frame = ctk.CTkFrame(self.home_tab)
-        log_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
+        log_frame.grid(row=0, column=1, padx=15, pady=15, sticky="nsew")
         log_frame.grid_rowconfigure(1, weight=1)
         log_frame.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(log_frame, text="Activity Log", font=ctk.CTkFont(size=16, weight="bold")).grid(row=0, column=0, pady=10)
+        ctk.CTkLabel(log_frame, text="Activity Log", font=ctk.CTkFont(size=18, weight="bold")).grid(row=0, column=0, pady=(15, 10))
         self.log_textbox = ctk.CTkTextbox(log_frame, state="disabled", wrap="word")
-        self.log_textbox.grid(row=1, column=0, padx=10, pady=(0,10), sticky="nsew")
+        self.log_textbox.grid(row=1, column=0, padx=15, pady=(0,15), sticky="nsew")
 
     def create_settings_tab(self):
         self.settings_tab.grid_columnconfigure(0, weight=1)
         self.settings_tab.grid_rowconfigure(0, weight=0) # For wg_frame
         self.settings_tab.grid_rowconfigure(1, weight=1) # For host_mgmt_frame
         self.settings_tab.grid_rowconfigure(2, weight=0) # For bottom_buttons_frame
+        self.settings_tab.grid_rowconfigure(3, weight=0) # For appearance_mode_frame
 
         wg_frame = ctk.CTkFrame(self.settings_tab)
-        wg_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        wg_frame.grid(row=0, column=0, padx=15, pady=15, sticky="ew")
         wg_frame.grid_columnconfigure(1, weight=1) # Make entry expand
-        ctk.CTkLabel(wg_frame, text="WireGuard Config Path:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        ctk.CTkLabel(wg_frame, text="WireGuard Config Path:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=15, pady=5, sticky="w")
         self.wg_path_entry = ctk.CTkEntry(wg_frame)
         self.wg_path_entry.insert(0, self.settings.get('wireguard_config_path', ''))
         self.wg_path_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
         ctk.CTkButton(wg_frame, text="Browse...", command=self.browse_wg_config).grid(row=0, column=2, padx=5, pady=5)
 
         host_mgmt_frame = ctk.CTkFrame(self.settings_tab)
-        host_mgmt_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
-        host_mgmt_frame.grid_rowconfigure(1, weight=1) # Make listbox expand
+        host_mgmt_frame.grid(row=1, column=0, padx=15, pady=15, sticky="nsew")
+        host_mgmt_frame.grid_rowconfigure(1, weight=1) # Make scrollable frame expand
         host_mgmt_frame.grid_rowconfigure(2, weight=0) # For edit_frame
         host_mgmt_frame.grid_rowconfigure(3, weight=0) # For btn_frame
         host_mgmt_frame.grid_columnconfigure(0, weight=1) # Make content expand
-        ctk.CTkLabel(host_mgmt_frame, text="Host Profiles", font=ctk.CTkFont(size=14, weight="bold")).grid(row=0, column=0, pady=5)
+        ctk.CTkLabel(host_mgmt_frame, text="Host Profiles", font=ctk.CTkFont(size=16, weight="bold")).grid(row=0, column=0, pady=(15, 10))
 
         self.host_scrollable_frame = ctk.CTkScrollableFrame(host_mgmt_frame)
-        self.host_scrollable_frame.grid(row=1, column=0, pady=5, padx=10, sticky="nsew")
+        self.host_scrollable_frame.grid(row=1, column=0, pady=5, padx=15, sticky="nsew")
         self.update_host_listbox()
 
         edit_frame = ctk.CTkFrame(host_mgmt_frame)
-        edit_frame.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
+        edit_frame.grid(row=2, column=0, padx=15, pady=10, sticky="ew")
         edit_frame.grid_columnconfigure(1, weight=1) # Make entry fields expand
 
         ctk.CTkLabel(edit_frame, text="Name:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
@@ -152,7 +155,7 @@ class App(ctk.CTk):
         self.user_entry.grid(row=3, column=1, padx=5, pady=5, sticky="ew")
 
         btn_frame = ctk.CTkFrame(host_mgmt_frame)
-        btn_frame.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
+        btn_frame.grid(row=3, column=0, padx=15, pady=(5, 15), sticky="ew")
         btn_frame.grid_columnconfigure((0,1,2), weight=1) # Make buttons expand
         ctk.CTkButton(btn_frame, text="Add", command=self.add_host).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
         ctk.CTkButton(btn_frame, text="Update", command=self.update_host).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
@@ -160,10 +163,26 @@ class App(ctk.CTk):
         
         # New frame for Save and Update Check buttons
         bottom_buttons_frame = ctk.CTkFrame(self.settings_tab)
-        bottom_buttons_frame.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
+        bottom_buttons_frame.grid(row=2, column=0, padx=15, pady=15, sticky="ew")
         bottom_buttons_frame.grid_columnconfigure((0,1), weight=1)
         ctk.CTkButton(bottom_buttons_frame, text="Save All Settings", command=self.save_settings).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
         ctk.CTkButton(bottom_buttons_frame, text="Check for Updates", command=self.check_for_updates_gui).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+
+        # Appearance Mode Setting
+        appearance_mode_frame = ctk.CTkFrame(self.settings_tab)
+        appearance_mode_frame.grid(row=3, column=0, padx=15, pady=15, sticky="ew")
+        appearance_mode_frame.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(appearance_mode_frame, text="Appearance Mode:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=15, pady=5, sticky="w")
+        self.appearance_mode_optionemenu = ctk.CTkOptionMenu(appearance_mode_frame, 
+                                                               values=["Light", "Dark", "System"],
+                                                               command=self.change_appearance_mode_event)
+        self.appearance_mode_optionemenu.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        self.appearance_mode_optionemenu.set(self.settings.get("appearance_mode", "System"))
+
+    def change_appearance_mode_event(self, new_appearance_mode: str):
+        ctk.set_appearance_mode(new_appearance_mode)
+        self.settings["appearance_mode"] = new_appearance_mode
+        sm.save_settings(self.settings)
 
     def browse_wg_config(self):
         filepath = filedialog.askopenfilename(title="Select WireGuard Configuration File")
@@ -179,7 +198,7 @@ class App(ctk.CTk):
         for i, host in enumerate(self.settings.get('hosts', [])):
             host_button = ctk.CTkButton(self.host_scrollable_frame, text=f"{host['name']} ({host['ip_address']})", 
                                         command=lambda h=host: self.on_host_select(h))
-            host_button.pack(fill="x", padx=5, pady=2)
+            host_button.pack(fill="x", padx=10, pady=5)
         self.update_host_dropdown()
 
     def on_host_select(self, host):
