@@ -132,6 +132,7 @@ class App(ctk.CTk):
 
         self.host_listbox = ctk.CTkTextbox(host_mgmt_frame, wrap="none")
         self.host_listbox.grid(row=1, column=0, pady=5, padx=10, sticky="nsew")
+        self.host_listbox.bind("<<ListboxSelect>>", self.on_host_select)
         self.update_host_listbox()
 
         edit_frame = ctk.CTkFrame(host_mgmt_frame)
@@ -177,8 +178,26 @@ class App(ctk.CTk):
         self.host_listbox.delete("1.0", ctk.END)
         for host in self.settings.get('hosts', []):
             self.host_listbox.insert(ctk.END, f"{host['name']} ({host['ip_address']})\n")
-        self.host_listbox.configure(state="disabled")
         self.update_host_dropdown()
+
+    def on_host_select(self, event=None):
+        # This event is for the Textbox, we need to get the selected line
+        selected_index = self.host_listbox.index(ctk.INSERT).split('.')[0]
+        if selected_index:
+            try:
+                selected_index = int(selected_index) - 1 # Convert to 0-based index
+                if 0 <= selected_index < len(self.settings.get('hosts', [])):
+                    host = self.settings.get('hosts', [])[selected_index]
+                    self.name_entry.delete(0, ctk.END)
+                    self.name_entry.insert(0, host.get('name', ''))
+                    self.ip_entry.delete(0, ctk.END)
+                    self.ip_entry.insert(0, host.get('ip_address', ''))
+                    self.mac_entry.delete(0, ctk.END)
+                    self.mac_entry.insert(0, host.get('mac_address', ''))
+                    self.user_entry.delete(0, ctk.END)
+                    self.user_entry.insert(0, host.get('rdp_user', ''))
+            except (ValueError, IndexError):
+                pass # Ignore errors if the line is invalid or out of range
 
     def update_host_dropdown(self):
         host_names = [h['name'] for h in self.settings.get('hosts', [])]
