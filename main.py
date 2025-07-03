@@ -42,6 +42,16 @@ class App(QMainWindow):
         self.settings = sm.load_settings()
         self.vpn_active = False
 
+        # Load Icons
+        self.icons = {}
+        for name, path in im.get_all_icons().items():
+            self.icons[name] = QIcon(path)
+        try:
+            app_icon_path = im.get_app_icon()
+            self.setWindowIcon(QIcon(app_icon_path))
+        except Exception as e:
+            print(f"Error setting application icon: {e}")
+
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget)
@@ -68,53 +78,292 @@ class App(QMainWindow):
         # self.check_for_updates_on_startup() # Re-enable after update manager is integrated
 
     def apply_stylesheet(self):
-        # Basic dark theme for now, will be expanded for glassy theme
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #2b2b2b;
-                color: #f0f0f0;
-            }
-            QTabWidget::pane {
-                border: 1px solid #444;
-                background-color: #3c3c3c;
-            }
-            QTabWidget::tab-bar {
-                left: 5px;
-            }
-            QTabBar::tab {
-                background: #555;
-                color: #f0f0f0;
-                border: 1px solid #666;
-                border-bottom-left-radius: 4px;
-                border-bottom-right-radius: 4px;
-                padding: 8px 20px;
-            }
-            QTabBar::tab:selected {
-                background: #3c3c3c;
-                border-color: #444;
-                border-bottom-color: #3c3c3c; /* make selected tab look like it's part of the pane */
-            }
-            QPushButton {
-                background-color: #007bff;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #0056b3;
-            }
-            QLineEdit, QTextEdit, QComboBox {
-                background-color: #444;
-                color: #f0f0f0;
-                border: 1px solid #555;
-                padding: 5px;
-                border-radius: 3px;
-            }
-            QLabel {
-                color: #f0f0f0;
-            }
-        """)
+        appearance_mode = self.settings.get("appearance_mode", "System")
+        if appearance_mode == "Dark":
+            # Dark Glassy Theme
+            stylesheet = """
+                QMainWindow {
+                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2c3e50, stop:1 #34495e);
+                    color: #ecf0f1;
+                }
+                QTabWidget::pane {
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    background-color: rgba(0, 0, 0, 0.3); /* Semi-transparent background */
+                    border-radius: 8px;
+                }
+                QTabWidget::tab-bar {
+                    left: 10px;
+                }
+                QTabBar::tab {
+                    background: rgba(255, 255, 255, 0.1);
+                    color: #ecf0f1;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-bottom-left-radius: 5px;
+                    border-bottom-right-radius: 5px;
+                    padding: 10px 25px;
+                    margin-right: 2px;
+                }
+                QTabBar::tab:selected {
+                    background: rgba(255, 255, 255, 0.2);
+                    border-color: rgba(255, 255, 255, 0.3);
+                    border-bottom-color: rgba(255, 255, 255, 0.0); /* Make selected tab look like it's part of the pane */
+                }
+                QPushButton {
+                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #3498db, stop:1 #2980b9);
+                    color: white;
+                    border: 1px solid #2980b9;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2980b9, stop:1 #3498db);
+                    border: 1px solid #3498db;
+                }
+                QPushButton:pressed {
+                    background-color: #2980b9;
+                }
+                QLineEdit, QTextEdit, QComboBox {
+                    background-color: rgba(255, 255, 255, 0.1);
+                    color: #ecf0f1;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    padding: 8px;
+                    border-radius: 5px;
+                }
+                QLabel {
+                    color: #ecf0f1;
+                }
+                QMessageBox {
+                    background-color: #2c3e50;
+                    color: #ecf0f1;
+                }
+                QMessageBox QPushButton {
+                    background-color: #3498db;
+                    color: white;
+                    border: none;
+                    padding: 8px 15px;
+                    border-radius: 3px;
+                }
+                QTableWidget {
+                    background-color: rgba(0, 0, 0, 0.2);
+                    alternate-background-color: rgba(0, 0, 0, 0.1);
+                    color: #ecf0f1;
+                    gridline-color: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 5px;
+                }
+                QHeaderView::section {
+                    background-color: rgba(255, 255, 255, 0.15);
+                    color: #ecf0f1;
+                    padding: 5px;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                }
+                QTableWidget::item:selected {
+                    background-color: rgba(52, 152, 219, 0.5); /* Blue selection with transparency */
+                    color: white;
+                }
+                QProgressBar {
+                    text-align: center;
+                    color: white;
+                    border-radius: 5px;
+                    background-color: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                }
+                QProgressBar::chunk {
+                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2ecc71, stop:1 #27ae60);
+                    border-radius: 5px;
+                }
+            """
+        elif appearance_mode == "Light":
+            # Light Glassy Theme
+            stylesheet = """
+                QMainWindow {
+                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #ecf0f1, stop:1 #bdc3c7);
+                    color: #2c3e50;
+                }
+                QTabWidget::pane {
+                    border: 1px solid rgba(0, 0, 0, 0.1);
+                    background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent background */
+                    border-radius: 8px;
+                }
+                QTabWidget::tab-bar {
+                    left: 10px;
+                }
+                QTabBar::tab {
+                    background: rgba(255, 255, 255, 0.7);
+                    color: #2c3e50;
+                    border: 1px solid rgba(0, 0, 0, 0.2);
+                    border-bottom-left-radius: 5px;
+                    border-bottom-right-radius: 5px;
+                    padding: 10px 25px;
+                    margin-right: 2px;
+                }
+                QTabBar::tab:selected {
+                    background: rgba(255, 255, 255, 0.9);
+                    border-color: rgba(0, 0, 0, 0.3);
+                    border-bottom-color: rgba(255, 255, 255, 0.0); /* Make selected tab look like it's part of the pane */
+                }
+                QPushButton {
+                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #3498db, stop:1 #2980b9);
+                    color: white;
+                    border: 1px solid #2980b9;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2980b9, stop:1 #3498db);
+                    border: 1px solid #3498db;
+                }
+                QPushButton:pressed {
+                    background-color: #2980b9;
+                }
+                QLineEdit, QTextEdit, QComboBox {
+                    background-color: rgba(255, 255, 255, 0.7);
+                    color: #2c3e50;
+                    border: 1px solid rgba(0, 0, 0, 0.2);
+                    padding: 8px;
+                    border-radius: 5px;
+                }
+                QLabel {
+                    color: #2c3e50;
+                }
+                QMessageBox {
+                    background-color: #ecf0f1;
+                    color: #2c3e50;
+                }
+                QMessageBox QPushButton {
+                    background-color: #3498db;
+                    color: white;
+                    border: none;
+                    padding: 8px 15px;
+                    border-radius: 3px;
+                }
+                QTableWidget {
+                    background-color: rgba(255, 255, 255, 0.6);
+                    alternate-background-color: rgba(255, 255, 255, 0.5);
+                    color: #2c3e50;
+                    gridline-color: rgba(0, 0, 0, 0.1);
+                    border: 1px solid rgba(0, 0, 0, 0.1);
+                    border-radius: 5px;
+                }
+                QHeaderView::section {
+                    background-color: rgba(0, 0, 0, 0.1);
+                    color: #2c3e50;
+                    padding: 5px;
+                    border: 1px solid rgba(0, 0, 0, 0.1);
+                }
+                QTableWidget::item:selected {
+                    background-color: rgba(52, 152, 219, 0.5); /* Blue selection with transparency */
+                    color: white;
+                }
+                QProgressBar {
+                    text-align: center;
+                    color: #2c3e50;
+                    border-radius: 5px;
+                    background-color: rgba(0, 0, 0, 0.1);
+                    border: 1px solid rgba(0, 0, 0, 0.2);
+                }
+                QProgressBar::chunk {
+                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2ecc71, stop:1 #27ae60);
+                    border-radius: 5px;
+                }
+            """
+        else: # System or default to Dark
+            stylesheet = """
+                QMainWindow {
+                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2c3e50, stop:1 #34495e);
+                    color: #ecf0f1;
+                }
+                QTabWidget::pane {
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    background-color: rgba(0, 0, 0, 0.3); /* Semi-transparent background */
+                    border-radius: 8px;
+                }
+                QTabWidget::tab-bar {
+                    left: 10px;
+                }
+                QTabBar::tab {
+                    background: rgba(255, 255, 255, 0.1);
+                    color: #ecf0f1;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-bottom-left-radius: 5px;
+                    border-bottom-right-radius: 5px;
+                    padding: 10px 25px;
+                    margin-right: 2px;
+                }
+                QTabBar::tab:selected {
+                    background: rgba(255, 255, 255, 0.2);
+                    border-color: rgba(255, 255, 255, 0.3);
+                    border-bottom-color: rgba(255, 255, 255, 0.0); /* Make selected tab look like it's part of the pane */
+                }
+                QPushButton {
+                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #3498db, stop:1 #2980b9);
+                    color: white;
+                    border: 1px solid #2980b9;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2980b9, stop:1 #3498db);
+                    border: 1px solid #3498db;
+                }
+                QPushButton:pressed {
+                    background-color: #2980b9;
+                }
+                QLineEdit, QTextEdit, QComboBox {
+                    background-color: rgba(255, 255, 255, 0.1);
+                    color: #ecf0f1;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    padding: 8px;
+                    border-radius: 5px;
+                }
+                QLabel {
+                    color: #ecf0f1;
+                }
+                QMessageBox {
+                    background-color: #2c3e50;
+                    color: #ecf0f1;
+                }
+                QMessageBox QPushButton {
+                    background-color: #3498db;
+                    color: white;
+                    border: none;
+                    padding: 8px 15px;
+                    border-radius: 3px;
+                }
+                QTableWidget {
+                    background-color: rgba(0, 0, 0, 0.2);
+                    alternate-background-color: rgba(0, 0, 0, 0.1);
+                    color: #ecf0f1;
+                    gridline-color: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 5px;
+                }
+                QHeaderView::section {
+                    background-color: rgba(255, 255, 255, 0.15);
+                    color: #ecf0f1;
+                    padding: 5px;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                }
+                QTableWidget::item:selected {
+                    background-color: rgba(52, 152, 219, 0.5); /* Blue selection with transparency */
+                    color: white;
+                }
+                QProgressBar {
+                    text-align: center;
+                    color: white;
+                    border-radius: 5px;
+                    background-color: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                }
+                QProgressBar::chunk {
+                    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2ecc71, stop:1 #27ae60);
+                    border-radius: 5px;
+                }
+            """
+        self.setStyleSheet(stylesheet)
 
     def log(self, message):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -136,17 +385,23 @@ class App(QMainWindow):
         self.vpn_status_label = QLabel("VPN: Disconnected")
         control_layout.addWidget(self.vpn_status_label)
 
-        self.connect_btn = QPushButton("Connect VPN")
+        self.connect_btn = QPushButton(self.icons['connect'], "Connect VPN")
         self.connect_btn.clicked.connect(self.toggle_vpn_connection)
         control_layout.addWidget(self.connect_btn)
 
-        self.wake_btn = QPushButton("Wake Host")
+        self.wake_btn = QPushButton(self.icons['wake'], "Wake Host")
         self.wake_btn.clicked.connect(self.wake_host)
         control_layout.addWidget(self.wake_btn)
 
-        self.rdp_btn = QPushButton("Launch RDP")
+        self.rdp_btn = QPushButton(self.icons['rdp'], "Launch RDP")
         self.rdp_btn.clicked.connect(self.launch_rdp)
         control_layout.addWidget(self.rdp_btn)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.setFormat("Downloading: %p%")
+        self.progress_bar.hide() # Hidden by default
+        control_layout.addWidget(self.progress_bar)
 
         # Log Frame
         log_frame = QWidget()
@@ -347,23 +602,21 @@ class App(QMainWindow):
             QMessageBox.warning(self, "Error", "WireGuard config path not set in Settings.")
             return
         self.log("VPN connection process started...")
-        # self.progress_bar.start() # Need to add QProgressBar
-        # self.connect_btn.setEnabled(False)
+        self.connect_btn.setEnabled(False)
         
         self.vpn_worker = Worker(vm.connect_vpn, config_path)
         self.vpn_worker.finished.connect(self.on_vpn_connect_done)
         self.vpn_worker.start()
 
     def on_vpn_connect_done(self, success, message):
-        # self.progress_bar.stop()
-        # self.connect_btn.setEnabled(True)
+        self.connect_btn.setEnabled(True)
         self.log(message)
         if success:
             self.vpn_active = True
             self.vpn_status_label.setText("VPN: Connected")
             self.vpn_status_label.setStyleSheet("color: green;")
             self.connect_btn.setText("Disconnect VPN")
-            # self.connect_btn.setIcon(QIcon(self.icons['disconnect'])) # Need to load icons as QIcon
+            self.connect_btn.setIcon(self.icons['disconnect'])
         else:
             self.vpn_status_label.setText("VPN: Failed")
             self.vpn_status_label.setStyleSheet("color: red;")
@@ -372,19 +625,21 @@ class App(QMainWindow):
     def disconnect_vpn(self):
         config_path = self.settings.get('wireguard_config_path')
         self.log("VPN disconnection process started...")
+        self.connect_btn.setEnabled(False)
         
         self.vpn_worker = Worker(vm.disconnect_vpn, config_path)
         self.vpn_worker.finished.connect(self.on_vpn_disconnect_done)
         self.vpn_worker.start()
 
     def on_vpn_disconnect_done(self, success, message):
+        self.connect_btn.setEnabled(True)
         self.log(message)
         if success:
             self.vpn_active = False
             self.vpn_status_label.setText("VPN: Disconnected")
             self.vpn_status_label.setStyleSheet("color: red;")
             self.connect_btn.setText("Connect VPN")
-            # self.connect_btn.setIcon(QIcon(self.icons['connect'])) # Need to load icons as QIcon
+            self.connect_btn.setIcon(self.icons['connect'])
         else:
             QMessageBox.critical(self, "VPN Error", message)
 
@@ -433,9 +688,8 @@ class App(QMainWindow):
                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
             if reply == QMessageBox.StandardButton.Yes:
                 self.log("Downloading update...")
-                # self.download_progress_bar.show() # Need to add QProgressBar
-                # self.download_percentage_label.show()
-                # self.download_progress_bar.setValue(0)
+                self.progress_bar.show()
+                self.progress_bar.setValue(0)
                 self.download_worker = Worker(um.download_asset, um.get_appropriate_asset(assets)['browser_download_url'], 
                                               os.path.join(os.path.expanduser("~"), um.get_appropriate_asset(assets)['name']), 
                                               self._update_download_progress_gui)
@@ -449,15 +703,12 @@ class App(QMainWindow):
     def _update_download_progress_gui(self, downloaded, total):
         if total > 0:
             progress = int((downloaded / total) * 100)
-            # self.download_progress_bar.setValue(progress)
-            # self.download_percentage_label.setText(f"Downloading: {progress}%")
+            self.progress_bar.setValue(progress)
         else:
-            # self.download_percentage_label.setText("Downloading...")
             pass
 
     def _handle_download_finished(self, success, error_message):
-        # self.download_progress_bar.hide()
-        # self.download_percentage_label.hide()
+        self.progress_bar.hide()
 
         if success:
             downloaded_path = os.path.join(os.path.expanduser("~"), um.get_appropriate_asset(um.check_for_updates()[2])['name']) # Re-get asset info
