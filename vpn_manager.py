@@ -4,7 +4,7 @@ import platform
 def get_vpn_command():
     system = platform.system()
     if system == "Windows":
-        return ["C:\\Program Files\\WireGuard\\wireguard.exe"]
+        return ["wg-quick"]
     elif system == "Linux":
         return ["wg-quick"]
     else:
