@@ -2,7 +2,7 @@ import sys
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QLineEdit, QTabWidget, QTextEdit, QComboBox,
-    QFileDialog, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView
+    QFileDialog, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView, QProgressBar
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QIcon, QPixmap
