@@ -52,12 +52,24 @@ def draw_rdp_icon(draw, size):
     draw.line((8, 20, 16, 20), fill="#4682B4", width=2)
     draw.line((12, 20, 12, 22), fill="#4682B4", width=2)
 
+def draw_pc_icon(draw, size):
+    # A simple desktop PC tower with a screen
+    # PC Tower
+    draw.rectangle((size[0]*0.2, size[1]*0.3, size[0]*0.5, size[1]*0.8), outline="#95a5a6", width=2)
+    draw.rectangle((size[0]*0.25, size[1]*0.35, size[0]*0.45, size[1]*0.45), fill="#95a5a6") # CD-ROM
+    draw.ellipse((size[0]*0.3, size[1]*0.6, size[0]*0.4, size[1]*0.7), fill="#95a5a6") # Power button
+
+    # Monitor
+    draw.rectangle((size[0]*0.55, size[1]*0.2, size[0]*0.85, size[1]*0.6), outline="#4682B4", width=2)
+    draw.line((size[0]*0.7, size[1]*0.6, size[0]*0.7, size[1]*0.7), fill="#4682B4", width=2) # Stand
+
 def get_all_icons():
     return {
         "connect": create_icon("connect", draw_connect_icon),
         "disconnect": create_icon("disconnect", draw_disconnect_icon),
         "wake": create_icon("wake", draw_wake_icon),
-        "rdp": create_icon("rdp", draw_rdp_icon)
+        "rdp": create_icon("rdp", draw_rdp_icon),
+        "pc": create_icon("pc", draw_pc_icon) # Add the PC icon
     }
 
 def get_app_icon():
