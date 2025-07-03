@@ -499,6 +499,11 @@ class App(QMainWindow):
 
         self.update_host_table()
 
+    def change_appearance_mode_event(self, new_appearance_mode: str):
+        self.settings["appearance_mode"] = new_appearance_mode
+        sm.save_settings(self.settings)
+        self.apply_stylesheet()
+
     def browse_wg_config(self):
         filepath, _ = QFileDialog.getOpenFileName(self, "Select WireGuard Configuration File")
         if filepath:
