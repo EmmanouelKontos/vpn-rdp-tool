@@ -227,8 +227,9 @@ class App(QMainWindow):
                     background-color: rgba(255, 255, 255, 0.1);
                 }
                 HostSelectionItem[selected="true"] {
-                    border: 2px solid #3498db;
-                    background-color: rgba(52, 152, 219, 0.2);
+                    border: 3px solid #3498db;
+                    background-color: rgba(52, 152, 219, 0.3);
+                    box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
                 }
             """
         elif appearance_mode == "Light":
@@ -335,8 +336,9 @@ class App(QMainWindow):
                     background-color: rgba(255, 255, 255, 0.9);
                 }
                 HostSelectionItem[selected="true"] {
-                    border: 2px solid #3498db;
-                    background-color: rgba(52, 152, 219, 0.2);
+                    border: 3px solid #3498db;
+                    background-color: rgba(52, 152, 219, 0.3);
+                    box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
                 }
             """
         else: # System or default to Dark

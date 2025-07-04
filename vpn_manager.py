@@ -2,13 +2,26 @@ import subprocess
 import platform
 import os
 
+def find_wireguard_windows():
+    """Search for WireGuard executable in common locations"""
+    possible_paths = [
+        r"C:\Program Files\WireGuard\wireguard.exe",
+        r"C:\Program Files (x86)\WireGuard\wireguard.exe"
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+    # Fall back to PATH lookup
+    return "wireguard.exe"
+
 def connect_vpn(config_path):
     system = platform.system()
     # Attempt to disconnect first to ensure a clean state
     disconnect_vpn(config_path) 
     try:
         if system == "Windows":
-            cmd = ["C:\\Program Files\\WireGuard\\wireguard.exe", "/installtunnelservice", config_path]
+            wg_path = find_wireguard_windows()
+            cmd = [wg_path, "/installtunnelservice", config_path]
         elif system == "Linux":
             cmd = ["wg-quick", "up", config_path]
         else:
@@ -28,7 +41,8 @@ def disconnect_vpn(config_path):
     try:
         tunnel_name = os.path.splitext(os.path.basename(config_path))[0]
         if system == "Windows":
-            cmd = ["C:\\Program Files\\WireGuard\\wireguard.exe", "/uninstalltunnelservice", tunnel_name]
+            wg_path = find_wireguard_windows()
+            cmd = [wg_path, "/uninstalltunnelservice", tunnel_name]
         elif system == "Linux":
             cmd = ["wg-quick", "down", config_path]
         else:
