@@ -22,27 +22,37 @@ A cross-platform desktop application for managing WireGuard VPN connections, sen
 2.  **Run the Application:** Double-click the `UniversalVPNTool` executable to start it.
 3.  **Configure:** On the first launch, a `config.json` file will be created in the same directory as the executable. Use the **Settings** tab in the application to configure your WireGuard path and host profiles.
 
+### Linux Setup
+
+For Linux users, the application requires `sudo` to manage WireGuard interfaces. To avoid entering your password every time, you can grant passwordless sudo for the `wg-quick` command. Add the following line to your sudoers file (use `sudo visudo`):
+
+```
+your_username ALL=(ALL) NOPASSWD: /usr/bin/wg-quick
+```
+
+Replace `your_username` with your actual username.
+
 ### Configuration (`config.json`)
 
 The application uses a `config.json` file to store your settings. You can edit this file manually or manage it through the app's **Settings** tab.
 
 ```json
 {
-    "wireguard_config_path": "/path/to/your/wireguard.conf",
-    "hosts": [
-        {
-            "name": "Workstation",
-            "ip_address": "192.168.1.101",
-            "mac_address": "00:1A:2B:3C:4D:5E",
-            "rdp_user": "myuser"
-        },
-        {
-            "name": "Home Server",
-            "ip_address": "10.0.0.5",
-            "mac_address": "F6:E5:D4:C3:B2:A1",
-            "rdp_user": "admin"
-        }
-    ]
+  "wireguard_config_path": "/path/to/your/wireguard.conf",
+  "hosts": [
+    {
+      "name": "Workstation",
+      "ip_address": "192.168.1.101",
+      "mac_address": "00:1A:2B:3C:4D:5E",
+      "rdp_user": "myuser"
+    },
+    {
+      "name": "Home Server",
+      "ip_address": "10.0.0.5",
+      "mac_address": "F6:E5:D4:C3:B2:A1",
+      "rdp_user": "admin"
+    }
+  ]
 }
 ```
 
@@ -59,18 +69,21 @@ If you want to run the application from the source or contribute to its developm
 ### Setup
 
 1.  **Clone the repository:**
+
     ```bash
     git clone https://github.com/YourUsername/vpn-rdp-tool.git
     cd vpn-rdp-tool
     ```
 
 2.  **Create and activate a virtual environment:**
+
     ```bash
     python -m venv venv
     source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
     ```
 
 3.  **Install dependencies:**
+
     ```bash
     pip install -r requirements.txt
     ```
