@@ -9,10 +9,12 @@ import netifaces
 
 def create_magic_packet(mac_address: str) -> bytes:
     """Create a magic packet for Wake-on-LAN."""
-    # Remove any separators and convert to uppercase
-    mac_address = mac_address.replace(':', '').replace('-', '').upper()
-    if len(mac_address) != 12:
-        raise ValueError("Invalid MAC address format")
+    # Remove any non-hex characters and convert to uppercase
+    cleaned_mac = ''.join(c for c in mac_address if c in '0123456789ABCDEFabcdef').upper()
+    if len(cleaned_mac) != 12:
+        raise ValueError("Invalid MAC address format: must be 12 hex digits")
+
+    mac_address = cleaned_mac
 
     # Create the magic packet (6 bytes of 0xFF followed by 16 repetitions of the MAC address)
     return b'\xFF' * 6 + bytes.fromhex(mac_address) * 16

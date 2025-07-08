@@ -11,6 +11,7 @@ import settings_manager as sm
 import vpn_manager as vm
 import icon_manager as im
 import update_manager as um
+import wol_manager as wm
 import os
 import platform
 import threading
@@ -220,17 +221,14 @@ class App(QMainWindow):
                     border: 1px solid rgba(255, 255, 255, 0.2);
                     border-radius: 8px;
                     background-color: rgba(255, 255, 255, 0.05);
-                    box-shadow: inset 0 0 8px rgba(0, 198, 255, 0.1);
                 }
                 HostSelectionItem:hover {
                     border: 1px solid rgba(255, 255, 255, 0.3);
                     background-color: rgba(255, 255, 255, 0.08);
-                    box-shadow: inset 0 0 12px rgba(0, 198, 255, 0.2);
                 }
                 HostSelectionItem[selected="true"] {
                     border: 1px solid qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #00c6ff, stop:1 #0072ff);
                     background-color: rgba(26, 115, 232, 0.3);
-                    box-shadow: inset 0 0 15px rgba(0, 198, 255, 0.3);
                 }
             """
         elif appearance_mode == "Light":
@@ -331,17 +329,14 @@ class App(QMainWindow):
                     border: 1px solid rgba(0, 0, 0, 0.2);
                     border-radius: 8px;
                     background-color: rgba(255, 255, 255, 0.7);
-                    box-shadow: inset 0 0 8px rgba(26, 208, 206, 0.1);
                 }
                 HostSelectionItem:hover {
                     border: 1px solid rgba(0, 0, 0, 0.3);
                     background-color: rgba(255, 255, 255, 0.8);
-                    box-shadow: inset 0 0 12px rgba(26, 208, 206, 0.2);
                 }
                 HostSelectionItem[selected="true"] {
                     border: 1px solid qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1a2980, stop:1 #26d0ce);
                     background-color: rgba(26, 115, 232, 0.3);
-                    box-shadow: inset 0 0 15px rgba(26, 208, 206, 0.3);
                 }
             """
         else: # System or default to Dark
@@ -753,6 +748,8 @@ class App(QMainWindow):
                 self.current_selected_host = host
                 self.selected_host_label.setText(f"Selected Host: {host_name}")
                 self.log(f"Host selected: {host_name}")
+                # Update status immediately when host changes
+                self.update_host_status()
                 break
         else:  # No matching host found (shouldn't happen normally)
             self.current_selected_host = None
@@ -962,20 +959,27 @@ class App(QMainWindow):
             pass
 
     def start_host_monitoring(self):
-        """Start periodic host status monitoring"""
+        """Start periodic host status monitoring in background thread"""
         self.host_monitor_timer = QTimer()
         self.host_monitor_timer.timeout.connect(self.update_host_status)
         self.host_monitor_timer.start(10000)  # Check every 10 seconds
         
     def update_host_status(self):
-        """Update status for all hosts"""
-        import wol_manager as wm
+        """Start host status check in background thread"""
         host = self.get_selected_host()
         if host:
-            status = wm.check_host_status(host['ip_address'])
-            status_text = "Online" if status == "online" else "Offline"
-            color = "green" if status == "online" else "red"
-            self.host_status_label.setText(f"Status: <span style='color:{color};'>{status_text}</span>")
+            # Start background thread to check host status
+            self.host_status_label.setText("Status: Checking...")
+            self.host_status_worker = Worker(wm.check_host_status, host['ip_address'])
+            self.host_status_worker.finished.connect(self.on_host_status_result)
+            self.host_status_worker.start()
+            
+    def on_host_status_result(self, status):
+        """Update UI with host status result"""
+        if status == "online":
+            self.host_status_label.setText("Status: <span style='color:green;'>Online</span>")
+        else:
+            self.host_status_label.setText("Status: <span style='color:red;'>Offline</span>")
             
     def _handle_download_finished(self, success, error_message):
         self.progress_bar.hide()

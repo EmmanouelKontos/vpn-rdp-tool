@@ -23,11 +23,24 @@ def connect_vpn(config_path):
             wg_path = find_wireguard_windows()
             cmd = [wg_path, "/installtunnelservice", config_path]
         elif system == "Linux":
-            cmd = ["wg-quick", "up", config_path]
+            # Use sudo for Linux systems and handle DNS resolver conflicts
+            cmd = ["sudo", "wg-quick", "up", config_path]
         else:
             raise OSError(f"Unsupported OS: {system}")
 
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            # Handle DNS resolver conflicts specifically
+            if "resolvconf: signature mismatch" in result.stderr:
+                # Try to fix resolvconf signature issue
+                fix_cmd = ["sudo", "resolvconf", "-u"]
+                subprocess.run(fix_cmd, check=False)
+                # Retry VPN connection
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                
+        if result.returncode != 0:
+            return False, f"VPN connection failed:\n{result.stderr}"
+            
         return True, f"Successfully connected to VPN using {config_path}"
     except FileNotFoundError:
         return False, "WireGuard command not found. Is WireGuard installed and in your PATH?"
@@ -44,11 +57,14 @@ def disconnect_vpn(config_path):
             wg_path = find_wireguard_windows()
             cmd = [wg_path, "/uninstalltunnelservice", tunnel_name]
         elif system == "Linux":
-            cmd = ["wg-quick", "down", config_path]
+            # Use sudo for Linux systems
+            cmd = ["sudo", "wg-quick", "down", config_path]
         else:
             raise OSError(f"Unsupported OS: {system}")
 
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            return False, f"VPN disconnection failed:\n{result.stderr}"
         return True, f"Successfully disconnected from VPN using {config_path}"
     except FileNotFoundError:
         return False, "WireGuard command not found. Is WireGuard installed and in your PATH?"
