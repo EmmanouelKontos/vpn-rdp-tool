@@ -4,20 +4,17 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QLineEdit, QTabWidget, QTextEdit, QComboBox,
     QFileDialog, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView, QProgressBar
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QEvent
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QEvent, QTimer
 from PyQt6.QtGui import QIcon, QPixmap, QMouseEvent
 
 import settings_manager as sm
 import vpn_manager as vm
-import wol_manager as wm
-import rdp_manager as rm
 import icon_manager as im
 import update_manager as um
 import os
 import platform
 import threading
 import time
-import subprocess
 from datetime import datetime
 
 class Worker(QThread):
@@ -104,22 +101,24 @@ class App(QMainWindow):
         self.main_layout.addWidget(self.tab_widget)
 
         self.home_tab = QWidget()
-        self.settings_tab = QWidget()
+        self.settings_tab = None  # Will be created on demand
 
         self.tab_widget.addTab(self.home_tab, "Home")
-        self.tab_widget.addTab(self.settings_tab, "Settings")
+        self.tab_widget.addTab(QLabel("Loading settings..."), "Settings")  # Placeholder
+
+        self.tab_widget.currentChanged.connect(self.on_tab_changed)
 
         self.create_home_tab()
-        self.create_settings_tab()
-        self.apply_stylesheet()
-
+        
         # Status Bar
         self.status_bar = QLabel(f"Version: {um.CURRENT_VERSION}")
         self.status_bar.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.main_layout.addWidget(self.status_bar)
 
-        self.log("Application started.")
-        # self.check_for_updates_on_startup() # Re-enable after update manager is integrated
+        self.show()
+        
+        # Defer non-essential initialization
+        QTimer.singleShot(100, self.deferred_init)
 
     def apply_stylesheet(self):
         appearance_mode = self.settings.get("appearance_mode", "System")
@@ -221,15 +220,16 @@ class App(QMainWindow):
                     border: 1px solid rgba(255, 255, 255, 0.2);
                     border-radius: 8px;
                     background-color: rgba(255, 255, 255, 0.05);
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }
                 HostSelectionItem:hover {
-                    border: 1px solid rgba(255, 255, 255, 0.4);
-                    background-color: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    background-color: rgba(255, 255, 255, 0.08);
                 }
                 HostSelectionItem[selected="true"] {
-                    border: 3px solid #3498db;
-                    background-color: rgba(52, 152, 219, 0.3);
-                    box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
+                    border: 3px solid #1a73e8;
+                    background-color: rgba(26, 115, 232, 0.3);
+                    box-shadow: 0 0 12px rgba(26, 115, 232, 0.7);
                 }
             """
         elif appearance_mode == "Light":
@@ -330,15 +330,16 @@ class App(QMainWindow):
                     border: 1px solid rgba(0, 0, 0, 0.2);
                     border-radius: 8px;
                     background-color: rgba(255, 255, 255, 0.7);
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }
                 HostSelectionItem:hover {
-                    border: 1px solid rgba(0, 0, 0, 0.4);
-                    background-color: rgba(255, 255, 255, 0.9);
+                    border: 1px solid rgba(0, 0, 0, 0.3);
+                    background-color: rgba(255, 255, 255, 0.8);
                 }
                 HostSelectionItem[selected="true"] {
-                    border: 3px solid #3498db;
-                    background-color: rgba(52, 152, 219, 0.3);
-                    box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
+                    border: 3px solid #1a73e8;
+                    background-color: rgba(26, 115, 232, 0.3);
+                    box-shadow: 0 0 12px rgba(26, 115, 232, 0.7);
                 }
             """
         else: # System or default to Dark
@@ -438,17 +439,38 @@ class App(QMainWindow):
                     border: 1px solid rgba(255, 255, 255, 0.2);
                     border-radius: 8px;
                     background-color: rgba(255, 255, 255, 0.05);
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }
                 HostSelectionItem:hover {
-                    border: 1px solid rgba(255, 255, 255, 0.4);
-                    background-color: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    background-color: rgba(255, 255, 255, 0.08);
                 }
                 HostSelectionItem[selected="true"] {
-                    border: 2px solid #3498db;
-                    background-color: rgba(52, 152, 219, 0.2);
+                    border: 3px solid #1a73e8;
+                    background-color: rgba(26, 115, 232, 0.3);
+                    box-shadow: 0 0 12px rgba(26, 115, 232, 0.7);
                 }
             """
         self.setStyleSheet(stylesheet)
+
+    def deferred_init(self):
+        """Initialize non-essential components after UI is shown"""
+        # Set button icons
+        self.connect_btn.setIcon(self.icons['connect'])
+        self.wake_btn.setIcon(self.icons['wake'])
+        self.rdp_btn.setIcon(self.icons['rdp'])
+        
+        # Apply stylesheet after UI is rendered
+        self.apply_stylesheet()
+        
+        self.log("Application started.")
+        # self.check_for_updates_on_startup() # Re-enable after update manager is integrated
+        
+        # Preload only essential icons for host selection
+        self.essential_icons = {}
+        for name in ['connect', 'disconnect', 'wake', 'rdp', 'pc']:
+            if name in self.icons:
+                self.essential_icons[name] = self.icons[name]
 
     def log(self, message):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -475,15 +497,16 @@ class App(QMainWindow):
         self.vpn_status_label = QLabel("VPN: Disconnected")
         control_layout.addWidget(self.vpn_status_label)
 
-        self.connect_btn = QPushButton(self.icons['connect'], "Connect VPN")
+        # Buttons without icons initially (will be set in deferred_init)
+        self.connect_btn = QPushButton("Connect VPN")
         self.connect_btn.clicked.connect(self.toggle_vpn_connection)
         control_layout.addWidget(self.connect_btn)
 
-        self.wake_btn = QPushButton(self.icons['wake'], "Wake Host")
+        self.wake_btn = QPushButton("Wake Host")
         self.wake_btn.clicked.connect(self.wake_host)
         control_layout.addWidget(self.wake_btn)
 
-        self.rdp_btn = QPushButton(self.icons['rdp'], "Launch RDP")
+        self.rdp_btn = QPushButton("Launch RDP")
         self.rdp_btn.clicked.connect(self.launch_rdp)
         control_layout.addWidget(self.rdp_btn)
 
@@ -506,7 +529,18 @@ class App(QMainWindow):
 
         self.update_host_selection()
 
+    def on_tab_changed(self, index):
+        """Create settings tab when selected for the first time"""
+        if index == 1 and self.settings_tab is None:  # Settings tab is index 1
+            self.settings_tab = QWidget()
+            self.tab_widget.removeTab(1)
+            self.tab_widget.addTab(self.settings_tab, "Settings")
+            self.create_settings_tab()
+            
     def create_settings_tab(self):
+        if self.settings_tab is None:
+            return
+            
         layout = QVBoxLayout(self.settings_tab)
 
         # WireGuard Config Path
@@ -675,19 +709,50 @@ class App(QMainWindow):
             elif self.current_selected_host:
                 # Ensure dropdown reflects current_selected_host if it was set by buttons previously
                 self.host_dropdown.setCurrentText(self.current_selected_host['name'])
+                
+        # Update selected host label
+        if self.current_selected_host:
+            self.selected_host_label.setText(f"Selected Host: {self.current_selected_host['name']}")
+        else:
+            self.selected_host_label.setText("Selected Host: None")
 
     def _select_host_by_item(self, host_data):
-        # Deselect all other items
-        for item in self.host_buttons:
-            if item.host_data['name'] != host_data['name']:
-                item.set_selected(False)
-            else:
-                item.set_selected(True)
-        self.current_selected_host = host_data
-        self.selected_host_label.setText(f"Selected Host: {host_data['name']}")
-        self.log(f"Host selected: {host_data['name']}")
+        # Toggle selection if clicking the same host
+        if self.current_selected_host and self.current_selected_host['name'] == host_data['name']:
+            # Deselect the currently selected host
+            for item in self.host_buttons:
+                if item.host_data['name'] == host_data['name']:
+                    item.set_selected(False)
+            self.current_selected_host = None
+            self.selected_host_label.setText("Selected Host: None")
+            self.log(f"Host deselected: {host_data['name']}")
+        else:
+            # Select the new host and deselect others
+            for item in self.host_buttons:
+                if item.host_data['name'] == host_data['name']:
+                    item.set_selected(True)
+                else:
+                    item.set_selected(False)
+            self.current_selected_host = host_data
+            self.selected_host_label.setText(f"Selected Host: {host_data['name']}")
+            self.log(f"Host selected: {host_data['name']}")
+        
         self.host_selection_container.style().polish(self.host_selection_container) # Re-polish container to update styles
 
+    def _select_host_by_dropdown(self, host_name):
+        """Handle host selection from dropdown menu"""
+        hosts = self.settings.get('hosts', [])
+        for host in hosts:
+            if host['name'] == host_name:
+                self.current_selected_host = host
+                self.selected_host_label.setText(f"Selected Host: {host_name}")
+                self.log(f"Host selected: {host_name}")
+                break
+        else:  # No matching host found (shouldn't happen normally)
+            self.current_selected_host = None
+            self.selected_host_label.setText("Selected Host: None")
+            self.log("Host deselected (no match found)")
+                
     
 
     def add_host(self):
@@ -765,7 +830,8 @@ class App(QMainWindow):
         self.vpn_worker.finished.connect(self.on_vpn_connect_done)
         self.vpn_worker.start()
 
-    def on_vpn_connect_done(self, success, message):
+    def on_vpn_connect_done(self, result):
+        success, message = result
         self.connect_btn.setEnabled(True)
         self.log(message)
         if success:
@@ -788,7 +854,8 @@ class App(QMainWindow):
         self.vpn_worker.finished.connect(self.on_vpn_disconnect_done)
         self.vpn_worker.start()
 
-    def on_vpn_disconnect_done(self, success, message):
+    def on_vpn_disconnect_done(self, result):
+        success, message = result
         self.connect_btn.setEnabled(True)
         self.log(message)
         if success:
@@ -801,6 +868,7 @@ class App(QMainWindow):
             QMessageBox.critical(self, "VPN Error", message)
 
     def wake_host(self):
+        import wol_manager as wm
         host = self.get_selected_host()
         if not host:
             QMessageBox.warning(self, "Error", "No host selected.")
@@ -814,6 +882,7 @@ class App(QMainWindow):
             QMessageBox.critical(self, "Wake-on-LAN Error", message)
 
     def launch_rdp(self):
+        import rdp_manager as rm
         host = self.get_selected_host()
         if not host:
             QMessageBox.warning(self, "Error", "No host selected.")
@@ -884,6 +953,7 @@ class App(QMainWindow):
             self.log(f"Update download failed: {error_message}")
 
     def _perform_self_update(self, downloaded_path):
+        import subprocess
         current_executable = sys.executable if not getattr(sys, 'frozen', False) else sys.argv[0]
         
         if not getattr(sys, 'frozen', False):

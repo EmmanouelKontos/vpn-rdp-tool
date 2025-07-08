@@ -38,7 +38,7 @@ del /q *.spec >nul 2>&1
 
 rem Build executable using PyInstaller
 echo 🛠️ Building Windows executable...
-"%VENV_DIR%\Scripts\pyinstaller.exe" --onefile --name UniversalVPNTool main.py
+"%VENV_DIR%\Scripts\pyinstaller.exe" --onefile --noconsole --name UniversalVPNTool main.py
 
 echo.
 echo ✅ Build complete!
