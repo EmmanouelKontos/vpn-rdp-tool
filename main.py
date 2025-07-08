@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QLineEdit, QTabWidget, QTextEdit, QComboBox,
     QFileDialog, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView, QProgressBar
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QEvent, QTimer
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QEvent, QTimer, QVariantAnimation
 from PyQt6.QtGui import QIcon, QPixmap, QMouseEvent
 
 import settings_manager as sm
@@ -59,7 +59,7 @@ class HostSelectionItem(QWidget):
         self.layout.addWidget(self.name_label)
 
         self.setFixedSize(100, 100) # Fixed size for the item
-
+        
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit(self.host_data)
@@ -220,16 +220,17 @@ class App(QMainWindow):
                     border: 1px solid rgba(255, 255, 255, 0.2);
                     border-radius: 8px;
                     background-color: rgba(255, 255, 255, 0.05);
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    box-shadow: inset 0 0 8px rgba(0, 198, 255, 0.1);
                 }
                 HostSelectionItem:hover {
                     border: 1px solid rgba(255, 255, 255, 0.3);
                     background-color: rgba(255, 255, 255, 0.08);
+                    box-shadow: inset 0 0 12px rgba(0, 198, 255, 0.2);
                 }
                 HostSelectionItem[selected="true"] {
-                    border: 3px solid #1a73e8;
+                    border: 1px solid qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #00c6ff, stop:1 #0072ff);
                     background-color: rgba(26, 115, 232, 0.3);
-                    box-shadow: 0 0 12px rgba(26, 115, 232, 0.7);
+                    box-shadow: inset 0 0 15px rgba(0, 198, 255, 0.3);
                 }
             """
         elif appearance_mode == "Light":
@@ -330,16 +331,17 @@ class App(QMainWindow):
                     border: 1px solid rgba(0, 0, 0, 0.2);
                     border-radius: 8px;
                     background-color: rgba(255, 255, 255, 0.7);
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    box-shadow: inset 0 0 8px rgba(26, 208, 206, 0.1);
                 }
                 HostSelectionItem:hover {
                     border: 1px solid rgba(0, 0, 0, 0.3);
                     background-color: rgba(255, 255, 255, 0.8);
+                    box-shadow: inset 0 0 12px rgba(26, 208, 206, 0.2);
                 }
                 HostSelectionItem[selected="true"] {
-                    border: 3px solid #1a73e8;
+                    border: 1px solid qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1a2980, stop:1 #26d0ce);
                     background-color: rgba(26, 115, 232, 0.3);
-                    box-shadow: 0 0 12px rgba(26, 115, 232, 0.7);
+                    box-shadow: inset 0 0 15px rgba(26, 208, 206, 0.3);
                 }
             """
         else: # System or default to Dark
@@ -439,16 +441,13 @@ class App(QMainWindow):
                     border: 1px solid rgba(255, 255, 255, 0.2);
                     border-radius: 8px;
                     background-color: rgba(255, 255, 255, 0.05);
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }
                 HostSelectionItem:hover {
                     border: 1px solid rgba(255, 255, 255, 0.3);
                     background-color: rgba(255, 255, 255, 0.08);
                 }
                 HostSelectionItem[selected="true"] {
-                    border: 3px solid #1a73e8;
                     background-color: rgba(26, 115, 232, 0.3);
-                    box-shadow: 0 0 12px rgba(26, 115, 232, 0.7);
                 }
             """
         self.setStyleSheet(stylesheet)
@@ -459,6 +458,9 @@ class App(QMainWindow):
         self.connect_btn.setIcon(self.icons['connect'])
         self.wake_btn.setIcon(self.icons['wake'])
         self.rdp_btn.setIcon(self.icons['rdp'])
+        
+        # Start host status monitoring
+        self.start_host_monitoring()
         
         # Apply stylesheet after UI is rendered
         self.apply_stylesheet()
@@ -505,6 +507,10 @@ class App(QMainWindow):
         self.wake_btn = QPushButton("Wake Host")
         self.wake_btn.clicked.connect(self.wake_host)
         control_layout.addWidget(self.wake_btn)
+        
+        # Add status indicator for selected host
+        self.host_status_label = QLabel("Status: Unknown")
+        control_layout.addWidget(self.host_status_label)
 
         self.rdp_btn = QPushButton("Launch RDP")
         self.rdp_btn.clicked.connect(self.launch_rdp)
@@ -873,11 +879,32 @@ class App(QMainWindow):
         if not host:
             QMessageBox.warning(self, "Error", "No host selected.")
             return
-        self.log(f"Sending Wake-on-LAN packet to {host['name']} ({host['mac_address']})...")
-        success, message = wm.wake_host(host['mac_address'])
+            
+        # Disable wake button during operation
+        self.wake_btn.setEnabled(False)
+        self.wake_btn.setText("Waking...")
+        
+        # Show progress bar
+        self.progress_bar.show()
+        self.progress_bar.setRange(0, 0)  # Indeterminate mode
+        
+        # Run wake_and_verify in worker thread
+        self.wake_worker = Worker(wm.wake_and_verify, host['mac_address'], host['ip_address'])
+        self.wake_worker.finished.connect(self.on_wake_finished)
+        self.wake_worker.start()
+        
+        self.log(f"Sending Wake-on-LAN to {host['name']} and verifying...")
+
+    def on_wake_finished(self, result):
+        success, message = result
+        # Re-enable wake button
+        self.wake_btn.setEnabled(True)
+        self.wake_btn.setText("Wake Host")
+        self.progress_bar.hide()
+        
         self.log(message)
         if success:
-            QMessageBox.information(self, "Wake-on-LAN", f"Magic packet sent to {host['name']}.")
+            QMessageBox.information(self, "Wake-on-LAN", f"Host {self.get_selected_host()['name']} is now online.")
         else:
             QMessageBox.critical(self, "Wake-on-LAN Error", message)
 
@@ -934,6 +961,22 @@ class App(QMainWindow):
         else:
             pass
 
+    def start_host_monitoring(self):
+        """Start periodic host status monitoring"""
+        self.host_monitor_timer = QTimer()
+        self.host_monitor_timer.timeout.connect(self.update_host_status)
+        self.host_monitor_timer.start(10000)  # Check every 10 seconds
+        
+    def update_host_status(self):
+        """Update status for all hosts"""
+        import wol_manager as wm
+        host = self.get_selected_host()
+        if host:
+            status = wm.check_host_status(host['ip_address'])
+            status_text = "Online" if status == "online" else "Offline"
+            color = "green" if status == "online" else "red"
+            self.host_status_label.setText(f"Status: <span style='color:{color};'>{status_text}</span>")
+            
     def _handle_download_finished(self, success, error_message):
         self.progress_bar.hide()
 
